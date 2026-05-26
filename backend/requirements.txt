@@ -1,0 +1,13 @@
+fastapi 
+uvicorn 
+pydantic 
+requests 
+python-dotenv
+openai
+mistralai
+transformers
+torch
+pillow
+vosk 
+pyttsx3 
+sounddevice
