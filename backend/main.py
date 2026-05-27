@@ -1,9 +1,19 @@
 from fastapi import FastAPI
 from core.chat_engine import ChatEngine
 from core.schema import ChatRequest
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 engine = ChatEngine()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 
 @app.post("/chat")
