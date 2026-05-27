@@ -31,36 +31,8 @@
 # =========================================================
 
 
-# =========================================================
-# Import système
-# =========================================================
-
 import os
-
-
-# =========================================================
-# Chargement automatique du fichier .env
-# =========================================================
-#
-# load_dotenv() permet de charger les variables
-# d'environnement définies dans :
-#
-# .env
-#
-# Exemple :
-#
-# USE_OLLAMA=true
-# OLLAMA_MODEL=llama3
-#
-# =========================================================
-
 from dotenv import load_dotenv
-
-
-# =========================================================
-# Import du helper de conversion booléenne
-# =========================================================
-
 from backend.config.toggle import env_bool
 
 
@@ -70,6 +42,24 @@ from backend.config.toggle import env_bool
 
 load_dotenv()
 
+# =========================================================
+# Modèle Ollama utilisé par défaut
+# =========================================================
+#
+# Exemple dans .env :
+#
+# OLLAMA_MODEL=llama3
+#
+# Si aucune valeur n'existe :
+#
+# "llama3" sera utilisé.
+#
+# =========================================================
+
+OLLAMA_MODEL = os.getenv(
+    "OLLAMA_MODEL",
+    "llama3"
+)
 
 # =========================================================
 # Active/désactive Ollama
@@ -96,10 +86,10 @@ USE_OLLAMA = env_bool(
 # Active/désactive OpenAI
 # =========================================================
 
-USE_OPENAI = env_bool(
-    os.getenv("USE_OPENAI"),
-    default=False
-)
+# USE_OPENAI = env_bool(
+#     os.getenv("USE_OPENAI"),
+#     default=False
+# )
 
 
 # =========================================================
@@ -139,21 +129,3 @@ USE_AUDIO = env_bool(
 )
 
 
-# =========================================================
-# Modèle Ollama utilisé par défaut
-# =========================================================
-#
-# Exemple dans .env :
-#
-# OLLAMA_MODEL=llama3
-#
-# Si aucune valeur n'existe :
-#
-# "llama3" sera utilisé.
-#
-# =========================================================
-
-OLLAMA_MODEL = os.getenv(
-    "OLLAMA_MODEL",
-    "llama3"
-)

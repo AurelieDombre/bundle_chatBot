@@ -1,12 +1,5 @@
-# ChatEngine fait exactement ça :
-
-# il reçoit un message
-# il construit un prompt
-# il appelle le LLMClient
-# il sert de cœur de génération de réponse
-
+# ChatEngine contient le moteur principal du chatbot
 from core.llm_client import LLMClient
-
 
 class ChatEngine:
 
