@@ -18,6 +18,9 @@ function App() {
   // Vrai pendant qu'on attend la réponse d'Ollama
   const [isLoading, setIsLoading] = useState(false)
 
+  // Changement de thème light ou dark
+  const [darkMode, setDarkMode] = useState(false)
+  
   // Référence vers le bas de la liste de messages (pour le scroll auto)
   const bottomRef = useRef(null)
 
@@ -31,6 +34,14 @@ function App() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
+// Changement de thème light ou dark
+  useEffect(() => {
+  if (darkMode) {
+    document.documentElement.classList.add("dark")
+  } else {
+    document.documentElement.classList.remove("dark")
+  }
+}, [darkMode])
 
   // =========================================================
   // Envoi d'un message
@@ -98,6 +109,12 @@ function App() {
           <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
           En ligne
         </span>
+        <button
+          onClick={() => setDarkMode(!darkMode)}
+          className="px-3 py-1 rounded-lg bg-gray-200 dark:bg-gray-700 text-sm"
+        >
+          {darkMode ? "☀️ Light" : "🌙 Dark"}
+        </button>
       </div>
 
       {/* Zone de messages avec scroll */}
