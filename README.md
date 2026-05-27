@@ -1,5 +1,98 @@
 # Guide Complet — Créer un Bundle de Chatbots Réutilisables
 
+# Sommaire
+
+- [Guide Complet — Créer un Bundle de Chatbots Réutilisables](#guide-complet--créer-un-bundle-de-chatbots-réutilisables)
+
+## Introduction
+- [Objectif](#objectif)
+
+## Architecture et technologies
+- [1. Architecture finale du projet](#1-architecture-finale-du-projet)
+- [2. Technologies utilisées](#2-technologies-utilisées)
+  - [Frontend](#frontend)
+  - [Backend](#backend)
+
+## Installation et configuration
+- [3. Installation du projet](#3-installation-du-projet)
+  - [Installer Python](#installer-python)
+  - [Installer Node.js](#installer-nodejs)
+
+- [4. Installer Ollama](#4-installer-ollama)
+  - [Télécharger](#télécharger)
+  - [Installer un modèle](#installer-un-modèle)
+  - [Tester Ollama](#tester-ollama)
+
+- [5. Création du backend FastAPI](#5-création-du-backend-fastapi)
+  - [Initialisation](#initialisation)
+  - [Créer l'environnement virtuel](#créer-lenvironnement-virtuel)
+
+- [6. Installer les dépendances backend](#6-installer-les-dépendances-backend)
+  - [Support OpenAI](#support-openai)
+  - [Support Mistral](#support-mistral)
+  - [Analyse IA locale](#analyse-ia-locale)
+  - [Vision](#vision)
+  - [Audio](#audio)
+
+- [7. Fichier .env](#7-fichier-env)
+
+## Core backend
+- [8. Core réutilisable](#8-core-réutilisable)
+- [9. Gestion des toggles et de la configuration](#9-gestion-des-toggles-et-de-la-configuration)
+  - [settings.py](#settingspy)
+  - [toggle.py](#togglepy)
+
+- [10. Gestion des prompts](#10-gestion-des-prompts)
+- [11. Client LLM universel](#11-client-llm-universel)
+- [12. Schémas Pydantic](#12-schémas-pydantic)
+- [13. Création du moteur de chat](#13-création-du-moteur-de-chat)
+- [14. API FastAPI](#14-api-fastapi)
+
+## Lancement du projet
+- [15. Lancer le backend](#15-lancer-le-backend)
+
+## Frontend React
+- [16. Création du frontend React](#16-création-du-frontend-react)
+- [17. Installation Tailwind](#17-installation-tailwind)
+- [18. Chat UI](#18-chat-ui)
+
+## Fonctionnalités IA avancées
+- [19. Analyse de sentiment](#19-analyse-de-sentiment)
+- [20. Analyse d'image](#20-analyse-dimage)
+- [21. Voice Chat](#21-voice-chat)
+- [22. Recherche de fichiers](#22-recherche-de-fichiers)
+
+## Architecture multi-bots
+- [23. Architecture multi-bots](#23-architecture-multi-bots)
+- [24. Structure d'un bot](#24-structure-dun-bot)
+- [25. Handler métier](#25-handler-métier)
+- [26. Router FastAPI](#26-router-fastapi)
+- [27. Brancher les bots](#27-brancher-les-bots)
+
+## Providers IA
+- [28. Ajouter OpenAI](#28-ajouter-openai)
+- [29. Ajouter Mistral](#29-ajouter-mistral)
+
+## Desktop et conteneurisation
+- [30. Ajouter Tauri (desktop)](#30-ajouter-tauri-desktop)
+- [31. Ajouter Docker](#31-ajouter-docker)
+- [32. Docker Compose](#32-docker-compose)
+
+## Bonnes pratiques et évolutions
+- [33. Bonnes pratiques importantes](#33-bonnes-pratiques-importantes)
+- [34. Features bonus avancées](#34-features-bonus-avancées)
+- [35. Roadmap idéale](#35-roadmap-idéale)
+- [36. Architecture finale recommandée](#36-architecture-finale-recommandée)
+- [37. Conseils de développement](#37-conseils-de-développement)
+
+## Conclusion
+- [38. Conclusion](#38-conclusion)
+
+## Dépannage
+- [ERREURS](#erreurs)
+  - [Pas de retour Ollama](#pas-de-retour-ollama)
+  - [Pour voir si l'api fonctionne bien](#pour-voir-si-lapi-fonctionne-bien)
+
 ## Objectif
 
 Créer une architecture de chatbot moderne, modulaire et réutilisable basée sur :
@@ -18,6 +111,7 @@ Créer une architecture de chatbot moderne, modulaire et réutilisable basée su
 Ce guide est conçu comme un cours étape par étape.
 
 ---
+
 
 # 1. Architecture finale du projet
 
@@ -2513,23 +2607,6 @@ Le plus important :
 * architecture scalable
 ---
 
-Je t’ai préparé un guide complet structuré comme un vrai cours de développement pour créer un bundle de chatbots modulaires avec :
-
-* FastAPI
-* React + Vite
-* Ollama
-* Switch OpenAI / Mistral
-* Analyse d’image
-* Voice chat
-* Recherche de fichiers
-* Architecture multi-bots
-* Core réutilisable
-* Docker
-* Tauri
-* Prompt management
-* Vision / sentiment / suggestions
-
-Le guide est pensé comme une base de framework réutilisable, inspirée directement des patterns communs de tes projets C3PO et Bon Vivant.
 
 # ERREURS :
 
