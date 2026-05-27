@@ -48,7 +48,7 @@ FALSE_SET = {"0", "false", "no", "off"}
 # Convertit une variable d'environnement en booléen
 # =========================================================
 def env_bool(value: str | None, default: bool = False) -> bool:
-
+    
     # Cas où la variable n'existe pas
     if value is None:
         return default

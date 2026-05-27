@@ -696,8 +696,8 @@ from mistralai.client import MistralClient
 
 
 USE_OLLAMA = os.getenv("USE_OLLAMA") == "true"
-USE_OPENAI = os.getenv("USE_OPENAI") == "true"
-USE_MISTRAL = os.getenv("USE_MISTRAL") == "true"
+# USE_OPENAI = os.getenv("USE_OPENAI") == "true"
+# USE_MISTRAL = os.getenv("USE_MISTRAL") == "true"
 
 # =========================================================
 # Classe principale de gestion des LLM
@@ -746,11 +746,11 @@ class LLMClient:
         if USE_OLLAMA:
             return self.ask_ollama(prompt)
 
-        if USE_OPENAI:
-            return self.ask_openai(prompt)
+        # if USE_OPENAI:
+        #     return self.ask_openai(prompt)
 
-        if USE_MISTRAL:
-            return self.ask_mistral(prompt)
+        # if USE_MISTRAL:
+        #     return self.ask_mistral(prompt)
 
         return "No provider enabled"
 

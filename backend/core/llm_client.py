@@ -21,11 +21,7 @@ import os
 import requests
 # from openai import OpenAI
 # from mistralai.client import MistralClient
-
-
-USE_OLLAMA = os.getenv("USE_OLLAMA") == "true"
-# USE_OPENAI = os.getenv("USE_OPENAI") == "true"
-# USE_MISTRAL = os.getenv("USE_MISTRAL") == "true"
+from config.settings import USE_OLLAMA
 
 
 # Cette classe agit comme une abstraction des providers IA.
