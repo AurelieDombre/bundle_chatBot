@@ -357,7 +357,7 @@ from dotenv import load_dotenv
 # Import du helper de conversion booléenne
 # =========================================================
 
-from backend.config.toggle import env_bool
+from config.toggle import env_bool
 
 
 # =========================================================
@@ -665,42 +665,26 @@ Architecture importante :
 * Plusieurs providers
 * Switch automatique
 
+Activation des providers IA via variables d'environnement
+Ces variables permettent d'activer ou désactiver
+ dynamiquement un provider LLM.
+
+ Exemple dans le fichier .env :
+* USE_OLLAMA=true
+* USE_OPENAI=false
+* USE_MISTRAL=false
+
+***exemple d'import de models : from config.settings import USE_OLLAMA***
+
+Il est recommandé d'utiliser env_bool() pour une gestion plus robuste des booléens (voir settings.py).
+
 ---
 
 ## Exemple simplifié
 
 ```python
-# Client LLM universel 
-
 # =========================================================
-# Activation des providers IA via variables d'environnement
-# =========================================================
-#
-# Ces variables permettent d'activer ou désactiver
-# dynamiquement un provider LLM.
-#
-# Exemple dans le fichier .env :
-#
-# USE_OLLAMA=true
-# USE_OPENAI=false
-# USE_MISTRAL=false
-# # exemple d'import de models : from config.settings import USE_OLLAMA
-# Il est recommandé d'utiliser env_bool()
-# pour une gestion plus robuste des booléens.
-# =========================================================
-
-import os
-import requests
-from openai import OpenAI
-from mistralai.client import MistralClient
-
-
-USE_OLLAMA = os.getenv("USE_OLLAMA") == "true"
-# USE_OPENAI = os.getenv("USE_OPENAI") == "true"
-# USE_MISTRAL = os.getenv("USE_MISTRAL") == "true"
-
-# =========================================================
-# Classe principale de gestion des LLM
+# Client LLM universel
 # =========================================================
 #
 # Cette classe agit comme une abstraction des providers IA.
@@ -716,7 +700,54 @@ USE_OLLAMA = os.getenv("USE_OLLAMA") == "true"
 #
 # client.ask(prompt)
 #
-# Puis le provider approprié est choisi automatiquement.
+# Puis le provider approprié est choisi automatiquement
+# selon les variables d'environnement définies
+# dans le fichier .env.
+#
+# Exemple :
+#
+# USE_OLLAMA=true
+# USE_OPENAI=false
+# USE_MISTRAL=false
+#
+# Le modèle Ollama utilisé peut aussi être configuré :
+#
+# OLLAMA_MODEL=llama3
+# =========================================================
+
+import httpx
+
+# from openai import OpenAI
+# from mistralai.client import MistralClient
+
+# =========================================================
+# Import des paramètres globaux
+# =========================================================
+#
+# USE_OLLAMA :
+# → active ou désactive Ollama
+#
+# OLLAMA_MODEL :
+# → modèle Ollama utilisé pour les générations
+# =========================================================
+from config.settings import USE_OLLAMA, OLLAMA_MODEL
+
+
+# =========================================================
+# Classe principale de gestion des LLM
+# =========================================================
+#
+# Cette classe sert de couche d'abstraction entre
+# le backend et les différents providers IA.
+#
+# L'objectif est de centraliser :
+#
+# - le choix du provider
+# - les appels API
+# - la gestion des erreurs
+#
+# afin de garder le reste du projet indépendant
+# du provider utilisé.
 # =========================================================
 class LLMClient:
 
@@ -733,6 +764,12 @@ class LLMClient:
     #
     # str
     # → réponse générée par le provider sélectionné
+    #
+    # Fonctionnement :
+    #
+    # - vérifie quel provider est activé
+    # - route automatiquement la requête
+    # - retourne la réponse générée
     # =====================================================
     def ask(self, prompt: str):
 
@@ -740,18 +777,29 @@ class LLMClient:
         # Provider Ollama local
         # =================================================
         #
-        # Si USE_OLLAMA=true dans le .env
-        # alors la requête est envoyée au serveur Ollama.
+        # Si USE_OLLAMA=true dans le .env,
+        # la requête est envoyée au serveur Ollama local.
         # =================================================
         if USE_OLLAMA:
             return self.ask_ollama(prompt)
 
+        # =================================================
+        # Future intégration OpenAI
+        # =================================================
+        #
         # if USE_OPENAI:
         #     return self.ask_openai(prompt)
+        # =================================================
 
+        # =================================================
+        # Future intégration Mistral
+        # =================================================
+        #
         # if USE_MISTRAL:
         #     return self.ask_mistral(prompt)
+        # =================================================
 
+        # Aucun provider activé
         return "No provider enabled"
 
     # =====================================================
@@ -780,23 +828,56 @@ class LLMClient:
     #   False = réponse complète
     #   True  = streaming token par token
     #
+    # Timeout :
+    #
+    # 60 secondes maximum
+    #
     # Retour :
     #
     # str
     # → texte généré par Ollama
+    #
+    # Gestion des erreurs :
+    #
+    # - capture les erreurs réseau
+    # - capture les erreurs HTTP
+    # - évite de faire planter le backend
     # =====================================================
-    def ask_ollama(self, prompt):
-        # Requête HTTP POST vers Ollama avec le modèle utilisé, le prompts et le streaming : False :→ réponse complète d'un coup / True : → réponse token par token
-        response = requests.post(
-            "http://localhost:11434/api/generate",
-            json={
-                "model": "llama3",
-                "prompt": prompt,
-                "stream": False
-            }
-        )
+    def ask_ollama(self, prompt: str) -> str:
 
-        return response.json()["response"]
+        try:
+
+            # =================================================
+            # Requête HTTP POST vers Ollama
+            # =================================================
+            response = httpx.post(
+                "http://localhost:11434/api/generate",
+                json={
+                    "model": OLLAMA_MODEL,
+                    "prompt": prompt,
+                    "stream": False
+                },
+                timeout=60.0
+            )
+
+            # =================================================
+            # Vérifie si la requête HTTP est valide
+            # =================================================
+            response.raise_for_status()
+
+            # =================================================
+            # Extraction de la réponse générée
+            # =================================================
+            return response.json()["response"]
+
+        # =====================================================
+        # Gestion globale des erreurs
+        # =====================================================
+        except Exception as e:
+
+            print(f"⚠️ Ollama error: {e}")
+
+            return "Erreur : impossible de contacter Ollama."
 ```
 
 ---
@@ -843,32 +924,194 @@ Créer le fichier dans : backend/core/chat_engine.py
 
 ## chat_engine.py
 
-ChatEngine fait exactement ça :
+Ce fichier contient le moteur principal du chatbot.
 
-- il reçoit un message
-- il construit un prompt
-- il appelle le LLMClient
-- il sert de cœur de génération de réponse
+Son rôle :
+ - recevoir les messages utilisateur
+ - construire le prompt envoyé au LLM
+ - appeler le provider IA
+ - retourner la réponse générée
+
+ > Ce moteur agit comme une couche intermédiaire entre :
+
+> Frontend/API
+    ↓
+ChatEngine
+    ↓
+ LLMClient
+    ↓
+ Ollama / OpenAI / Mistral
+
+> Import du client LLM universel
+
+LLMClient est une abstraction des providers IA.
+
+Il permet de :
+- utiliser Ollama
+- utiliser OpenAI
+- utiliser Mistral
+ sans modifier le reste du projet.
+
 
 ```python
-
+# =====================================================
+# Moteur principal du chatbot
+# =====================================================
+#
+# ChatEngine orchestre la conversation entre
+# l'utilisateur et le modèle IA.
+#
+# Il gère :
+#
+# - le prompt système (personnalité du bot)
+# - l'historique de la conversation
+# - l'envoi des messages au provider LLM
+#
+# =====================================================
 
 from core.llm_client import LLMClient
+from core.prompt_manager import load_prompt
 
 
 class ChatEngine:
 
+
+    # =================================================
+    # Constructeur
+    # =================================================
+    #
+    # Initialise le moteur de conversation.
+    #
+    # - charge le prompt système depuis un fichier
+    # - prépare un historique vide
+    # - instancie le client LLM
+    #
+    # =================================================
+
     def __init__(self):
+
         self.client = LLMClient()
+
+
+        # =============================================
+        # Prompt système
+        # =============================================
+        #
+        # Définit la personnalité et les instructions
+        # de base du chatbot.
+        #
+        # Chargé depuis :
+        #
+        # prompts/exemple_v1.0.txt
+        #
+        # =============================================
+
+        self.system_prompt = load_prompt("exemple_v1.0.txt")
+
+
+        # =============================================
+        # Historique de la conversation
+        # =============================================
+        #
+        # Liste des échanges au format :
+        #
+        # "User: ..."
+        # "Assistant: ..."
+        #
+        # Permet au modèle de garder le contexte
+        # des messages précédents.
+        #
+        # =============================================
+
+        self.history = []
+
+
+    # =================================================
+    # Méthode principale de conversation
+    # =================================================
+    #
+    # Paramètres :
+    #
+    # message (str)
+    # → message envoyé par l'utilisateur
+    #
+    # Retour :
+    #
+    # str
+    # → réponse générée par le LLM
+    #
+    # =================================================
 
     def chat(self, message: str):
 
-        prompt = f"""
-        User: {message}
-        Assistant:
-        """
 
-        return self.client.ask(prompt)
+        # =============================================
+        # Ajout du message utilisateur à l'historique
+        # =============================================
+        #
+        # On préfixe avec "User:" pour que le modèle
+        # comprenne qui parle.
+        #
+        # =============================================
+
+        self.history.append(f"User: {message}")
+
+
+        # =============================================
+        # Construction du prompt complet
+        # =============================================
+        #
+        # Le prompt final envoyé au modèle est composé
+        # de trois parties :
+        #
+        # 1. system_prompt  → personnalité du bot
+        # 2. conversation   → historique des échanges
+        # 3. "Assistant:"   → invite le modèle à répondre
+        #
+        # Exemple :
+        #
+        # Tu es un assistant utile...
+        #
+        # User: Bonjour
+        # Assistant: Bonjour ! Comment puis-je...
+        # User: Explique FastAPI
+        # Assistant:
+        #
+        # =============================================
+
+        conversation = "\n".join(self.history)
+        prompt = f"{self.system_prompt}\n\n{conversation}\nAssistant:"
+
+
+        # =============================================
+        # Envoi du prompt au provider LLM
+        # =============================================
+        #
+        # self.client.ask() envoie le prompt à :
+        #
+        # - Ollama
+        # - ou OpenAI
+        # - ou Mistral
+        #
+        # selon la configuration active dans .env
+        #
+        # =============================================
+
+        reply = self.client.ask(prompt)
+
+
+        # =============================================
+        # Ajout de la réponse à l'historique
+        # =============================================
+        #
+        # On préfixe avec "Assistant:" pour que les
+        # prochains échanges gardent le contexte.
+        #
+        # =============================================
+
+        self.history.append(f"Assistant: {reply}")
+
+        return reply
 ```
 
 ---
@@ -877,26 +1120,299 @@ class ChatEngine:
 
 ## main.py
 
+Ce fichier représente le point d'entrée principal du backend FastAPI.
+
+Son rôle :
+
+ - créer l'application FastAPI
+ - initialiser le moteur du chatbot
+ - exposer les routes API
+ - recevoir les requêtes frontend
+ - retourner les réponses du LLM
+  
+Architecture :
+    Frontend React
+        ↓
+    API FastAPI
+        ↓
+    ChatEngine
+        ↓
+    LLMClient
+        ↓
+    Ollama / OpenAI / Mistral
+
 ```python
+# =========================================================
+# Import FastAPI
+# =========================================================
+#
+# FastAPI est le framework backend utilisé
+# pour créer les routes API du chatbot.
+#
+# =========================================================
+
 from fastapi import FastAPI
+
+
+# =========================================================
+# Import du moteur principal du chatbot
+# =========================================================
+#
+# ChatEngine :
+#
+# - construit les prompts
+# - appelle le provider IA
+# - retourne les réponses générées
+#
+# =========================================================
+
 from core.chat_engine import ChatEngine
+
+
+# =========================================================
+# Import des schémas Pydantic
+# =========================================================
+#
+# ChatRequest sert à :
+#
+# - valider automatiquement les requêtes JSON
+# - typer les données reçues
+# - sécuriser les entrées API
+#
+# =========================================================
+
 from core.schema import ChatRequest
 
+
+# =========================================================
+# Import du middleware CORS
+# =========================================================
+#
+# CORSMiddleware permet de gérer les requêtes cross-origin (CORS)
+#
+#  CORS = autoriser un frontend (React, Vue, etc.)
+#          à appeler ton backend FastAPI
+#
+# Sans ce middleware, le navigateur bloque les requêtes
+# venant d’un autre domaine / port (ex: localhost:5173 → localhost:8000)
+#
+# =========================================================
+
+from fastapi.middleware.cors import CORSMiddleware
+
+# =========================================================
+# Création de l'application FastAPI
+# =========================================================
+#
+# Cette instance représente l'API backend complète.
+#
+# Toutes les routes seront attachées à cet objet.
+#
+# =========================================================
+
 app = FastAPI()
+
+
+# =========================================================
+# Initialisation du moteur chatbot
+# =========================================================
+#
+# Une seule instance est créée au démarrage
+# du backend.
+#
+# Cette instance sera réutilisée pour toutes
+# les requêtes utilisateur.
+#
+# =========================================================
+
 engine = ChatEngine()
 
+# =========================================================
+# Configuration du middleware CORS
+# =========================================================
+#
+# app.add_middleware() ajoute un middleware global à l'application FastAPI
+#
+# Ici on configure les règles d'accès à l'API
+#
+# =========================================================
+
+app.add_middleware(
+    CORSMiddleware,
+
+    # -----------------------------------------------------
+    # allow_origins
+    # -----------------------------------------------------
+    #
+    # Liste des domaines autorisés à accéder à l'API
+    #
+    # "*" = tous les domaines sont autorisés
+    #
+    # ⚠️ En production, il est recommandé de restreindre :
+    # ["https://mon-site.com"]
+    #
+    allow_origins=["http://localhost:5173"],
+
+    # -----------------------------------------------------
+    # allow_credentials
+    # -----------------------------------------------------
+    #
+    # Autorise l'envoi de cookies et identifiants (auth)
+    #
+    # Nécessaire si tu utilises :
+    # - JWT en cookies
+    # - sessions utilisateur
+    #
+    allow_credentials=True,
+
+    # -----------------------------------------------------
+    # allow_methods
+    # -----------------------------------------------------
+    #
+    # Liste des méthodes HTTP autorisées
+    #
+    # "*" = toutes les méthodes sont autorisées :
+    # GET, POST, PUT, DELETE, PATCH, etc.
+    #
+    allow_methods=["*"],
+
+    # -----------------------------------------------------
+    # allow_headers
+    # -----------------------------------------------------
+    #
+    # Liste des headers HTTP autorisés
+    #
+    # "*" = tous les headers sont acceptés
+    #
+    # Exemples de headers :
+    # - Authorization
+    # - Content-Type
+    # - Accept
+    #
+    allow_headers=["*"],
+)
+
+# =========================================================
+# Route API : Route de test simple.
+# =========================================================
+#Elle permet de verifier rapidement que l'API repond bien.
+
+@app.get("/")
+def home():
+    return {"message": "API chatbot OK"}
+
+# =========================================================
+# Route API principale du chatbot
+# =========================================================
+#
+# Endpoint :
+#
+# POST /chat
+#
+# Cette route :
+#
+# 1. reçoit les messages du frontend
+# 2. extrait le dernier message utilisateur
+# 3. envoie le message au ChatEngine
+# 4. récupère la réponse IA
+# 5. retourne la réponse au frontend
+#
+# =========================================================
 
 @app.post("/chat")
+
+
+# =========================================================
+# Fonction appelée lorsqu'une requête arrive
+# sur /chat
+# =========================================================
+#
+# Paramètres :
+#
+# req : ChatRequest -> défini dans schema.py
+#
+# Exemple JSON reçu :
+#
+# {
+#   "messages": [
+#       {
+#           "role": "user",
+#           "content": "Bonjour"
+#       }
+#   ]
+# }
+#
+# FastAPI + Pydantic convertissent automatiquement
+# ce JSON en objet Python typé.
+#
+# =========================================================
+
 def chat(req: ChatRequest):
+
+
+    # =====================================================
+    # Récupération du dernier message utilisateur
+    # =====================================================
+    #
+    # req.messages :
+    # → liste des messages de conversation
+    #
+    # [-1] :
+    # → dernier élément de la liste
+    #
+    # .content :
+    # → texte du message
+    #
+    # Exemple :
+    #
+    # "Bonjour"
+    #
+    # =====================================================
 
     user_message = req.messages[-1].content
 
+
+    # =====================================================
+    # Envoi du message au moteur IA
+    # =====================================================
+    #
+    # Le ChatEngine :
+    #
+    # - construit le prompt
+    # - appelle Ollama/OpenAI/Mistral
+    # - récupère la réponse générée
+    #
+    # =====================================================
+
     reply = engine.chat(user_message)
+
+
+    # =====================================================
+    # Retour de la réponse au frontend
+    # =====================================================
+    #
+    # FastAPI convertit automatiquement ce dictionnaire
+    # Python en JSON.
+    #
+    # Exemple retourné :
+    #
+    # {
+    #   "reply": "Bonjour !"
+    # }
+    #
+    # =====================================================
 
     return {
         "reply": reply
     }
 ```
+
+### Créer un prompt
+
+Dans le dossier prompt du backend, créer un fichier de type "exemple_v1.0.txt".
+Mettre le prompt de ce que l'on veut générer.
+
+Il est géré par le /core/prompt_manager.py
 
 ---
 
@@ -936,28 +1452,54 @@ JavaScript
 ```bash
 cd frontend
 npm install
-npm install axios
+npm install axios 
 ```
-
+Axios est installé principalement pour simplifier les appels API entre React et FastAPI
 ---
 
 # 17. Installation Tailwind
 
+Autoprefixer est installé avec TailwindCSS pour ajouter automatiquement les préfixes CSS nécessaires selon les navigateurs
+
 ```bash
-npm install -D tailwindcss postcss autoprefixer
-npx tailwindcss init -p
+npm install tailwindcss @tailwindcss/vite
 ```
 
 ---
 
-## Configuration Tailwind
+## Configuration de vite
+
+Dans vite.config.js
 
 ```js
-content: [
-  "./index.html",
-  "./src/**/*.{js,ts,jsx,tsx}",
-]
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
+
+export default defineConfig({
+  plugins: [
+    react(),
+    tailwindcss(),
+  ],
+})
 ```
+
+Ajouter Tailwind dans le src/index.css
+
+```css
+@import "tailwindcss";
+```
+
+Importer le CSS dans main.jsx
+
+```js
+import './index.css'
+```
+
+Puis lancer le frontend :
+
+`npm run dev`
+
 
 ---
 
@@ -965,69 +1507,509 @@ content: [
 
 ## App.jsx
 
+Ce composant représente l'interface principale
+du chatbot React.
+* Son rôle :
+- afficher les messages
+- gérer l'état de la conversation
+- envoyer les requêtes au backend FastAPI
+- afficher les réponses du LLM
+ 
+> ***Architecture :***
+> 
+> React Frontend
+    ↓ 
+axios HTTP
+FastAPI Backend
+    ↓
+ChatEngine
+    ↓
+Ollama / OpenAI / Mistral
+
 ```jsx
+// =========================================================
+// Import du hook React useState
+// =========================================================
+//
+// useState permet de stocker des données dynamiques
+// dans le composant.
+//
+// Ici il sert à gérer :
+//
+// - les messages du chat
+// - le texte de l'input utilisateur
+//
+// =========================================================
+
 import { useState } from "react"
+
+
+// =========================================================
+// Import d'Axios
+// =========================================================
+//
+// Axios permet d'envoyer des requêtes HTTP
+// vers le backend FastAPI.
+//
+// Ici :
+//
+// React → POST /chat → FastAPI
+//
+// =========================================================
+
 import axios from "axios"
+
+
+
+// =========================================================
+// Composant principal React
+// =========================================================
+//
+// Ce composant contient :
+//
+// - l'UI du chatbot
+// - l'état de la conversation
+// - l'envoi des messages
+//
+// =========================================================
 
 function App() {
 
+  // =======================================================
+  // État des messages du chatbot
+  // =======================================================
+  //
+  // messages :
+  // → tableau contenant toute la conversation
+  //
+  // setMessages :
+  // → fonction permettant de modifier les messages
+  //
+  // Exemple :
+  //
+  // [
+  //   {
+  //      role: "user",
+  //      content: "Bonjour"
+  //   },
+  //   {
+  //      role: "assistant",
+  //      content: "Bonjour humain."
+  //   }
+  // ]
+  //
+  // =======================================================
+
   const [messages, setMessages] = useState([])
+
+  // =======================================================
+  // État du champ input utilisateur
+  // =======================================================
+  //
+  // query :
+  // → texte actuellement écrit dans l'input
+  //
+  // setQuery :
+  // → modifie le contenu du champ
+  //
+  // =======================================================
+
   const [query, setQuery] = useState("")
+
+
+  // =======================================================
+  // Fonction appelée lors de l'envoi d'un message
+  // =======================================================
+  //
+  // Cette fonction :
+  //
+  // 1. ajoute le message utilisateur
+  // 2. envoie la conversation au backend
+  // 3. récupère la réponse IA
+  // 4. ajoute la réponse à l'interface
+  //
+  // =======================================================
 
   async function handleSend() {
 
+    // =====================================================
+    // Création du nouveau tableau de messages
+    // =====================================================
+    //
+    // ...messages :
+    // → copie les anciens messages
+    //
+    // Puis :
+    // → ajoute le nouveau message utilisateur
+    //
+    // =====================================================
+
     const newMessages = [
+
       ...messages,
+
       {
         role: "user",
         content: query
       }
     ]
 
+
+
+    // =====================================================
+    // Mise à jour immédiate de l'interface
+    // =====================================================
+    //
+    // Le message utilisateur apparaît directement
+    // dans le chat avant même la réponse IA.
+    //
+    // =====================================================
+
     setMessages(newMessages)
 
+
+
+    // =====================================================
+    // Envoi de la requête HTTP au backend FastAPI
+    // =====================================================
+    //
+    // axios.post(url, data)
+    //
+    // URL :
+    //
+    // http://localhost:8000/chat
+    //
+    // Données envoyées :
+    //
+    // {
+    //   messages: [...]
+    // }
+    //
+    // =====================================================
+
     const response = await axios.post(
+
       "http://localhost:8000/chat",
+
       {
         messages: newMessages
       }
     )
 
+
+
+    // =====================================================
+    // Ajout de la réponse IA dans la conversation
+    // =====================================================
+    //
+    // response.data.reply :
+    // → réponse retournée par FastAPI
+    //
+    // Exemple :
+    //
+    // {
+    //   "reply": "Bonjour humain."
+    // }
+    //
+    // =====================================================
+
     setMessages([
+
       ...newMessages,
+
       {
         role: "assistant",
         content: response.data.reply
       }
     ])
 
+
+
+    // =====================================================
+    // Réinitialisation du champ texte
+    // =====================================================
+    //
+    // Vide l'input après envoi du message.
+    //
+    // =====================================================
+
     setQuery("")
   }
 
+
+
+  // =======================================================
+  // Rendu HTML du composant React
+  // =======================================================
+  //
+  // return() contient toute l'interface utilisateur.
+  //
+  // =======================================================
+
   return (
+
     <div>
+
+
+      {/* ==================================================
+          Titre du chatbot
+         ================================================== */}
+
       <h1>ChatBot</h1>
 
+
+
+      {/* ==================================================
+          Affichage des messages
+         ==================================================
+         
+         messages.map(...)
+         
+         Parcourt tous les messages de conversation.
+         
+         Chaque message affiche :
+         
+         - le rôle
+         - le contenu
+         
+         ================================================== */}
+
       {messages.map((msg, i) => (
+
         <div key={i}>
+
           <b>{msg.role}</b>: {msg.content}
+
         </div>
       ))}
 
+
+
+      {/* ==================================================
+          Champ de saisie utilisateur
+         ==================================================
+         
+         value :
+         → valeur actuelle de l'input
+         
+         onChange :
+         → met à jour query à chaque frappe clavier
+         
+         ================================================== */}
+
       <input
+
         value={query}
+
         onChange={(e) => setQuery(e.target.value)}
+
       />
 
+
+
+      {/* ==================================================
+          Bouton d'envoi
+         ==================================================
+         
+         onClick :
+         → déclenche handleSend()
+         
+         ================================================== */}
+
       <button onClick={handleSend}>
+
         Envoyer
+
       </button>
+
+    </div>
+  )
+}
+
+// =========================================================
+// Export du composant
+// =========================================================
+//
+// Permet à React/Vite d'utiliser ce composant
+// comme point d'entrée principal de l'application.
+//
+// =========================================================
+
+export default App
+```
+
+### Version plus avancée :
+
+```jsx
+import { useState, useRef, useEffect } from 'react'
+import axios from "axios"
+
+function App() {
+
+  // =========================================================
+  // États
+  // =========================================================
+
+  // Historique des messages affichés dans le chat
+  const [messages, setMessages] = useState([
+    { role: "assistant", content: "Bonjour, comment puis-je vous aider ?" }
+  ])
+
+  // Contenu de l'input utilisateur
+  const [query, setQuery] = useState("")
+
+  // Vrai pendant qu'on attend la réponse d'Ollama
+  const [isLoading, setIsLoading] = useState(false)
+
+  // Référence vers le bas de la liste de messages (pour le scroll auto)
+  const bottomRef = useRef(null)
+
+
+  // =========================================================
+  // Scroll automatique vers le dernier message
+  // =========================================================
+
+  // S'exécute à chaque fois que `messages` change
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages])
+
+
+  // =========================================================
+  // Envoi d'un message
+  // =========================================================
+
+  async function handleSend() {
+
+    // Nettoyage de l'input (supprime les espaces en début/fin)
+    const trimmed = query.trim()
+
+    // Bloque l'envoi si le message est vide ou si une réponse est déjà en cours
+    if (!trimmed || isLoading) return
+
+    // Ajout du message utilisateur à l'historique local
+    const newMessages = [...messages, { role: "user", content: trimmed }]
+    setMessages(newMessages)
+
+    // Réinitialise l'input immédiatement (ne pas attendre la réponse)
+    setQuery("")
+
+    // Active l'indicateur de chargement
+    setIsLoading(true)
+
+    try {
+
+      // Envoi de l'historique complet au backend FastAPI
+      const response = await axios.post("http://localhost:8000/chat", {
+        messages: newMessages
+      })
+
+      // Ajout de la réponse de l'assistant à l'historique
+      setMessages([...newMessages, { role: "assistant", content: response.data.reply }])
+
+    } catch (err) {
+
+      // En cas d'erreur réseau ou serveur, on affiche un message d'erreur
+      console.error("Erreur:", err)
+      setMessages([...newMessages, { role: "assistant", content: "⚠️ Erreur de connexion." }])
+
+    } finally {
+
+      // Désactive le chargement dans tous les cas (succès ou erreur)
+      setIsLoading(false)
+
+    }
+  }
+
+
+  // =========================================================
+  // Rendu
+  // =========================================================
+
+  return (
+    <div className="h-screen flex flex-col bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white">
+
+      {/* Barre du haut avec le nom et le statut */}
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+        <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-300 text-sm">
+          🤖
+        </div>
+        <span className="text-sm font-medium">Assistant</span>
+
+        {/* Point vert = connecté */}
+        <span className="ml-auto text-xs text-gray-400 flex items-center gap-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
+          En ligne
+        </span>
+      </div>
+
+      {/* Zone de messages avec scroll */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+        {messages.map((msg, i) => (
+
+          // Aligne à droite pour l'utilisateur, à gauche pour l'assistant
+          <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+            <div className={`
+              max-w-[72%] px-4 py-2.5 text-sm leading-relaxed
+              ${msg.role === "user"
+                // Bulle bleue pour l'utilisateur, coin haut-droit aplati
+                ? "bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100 rounded-xl rounded-tr-sm"
+                // Bulle blanche pour l'assistant, coin haut-gauche aplati
+                : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 rounded-xl rounded-tl-sm"
+              }
+            `}>
+              {msg.content}
+            </div>
+          </div>
+        ))}
+
+        {/* Indicateur "en train d'écrire..." affiché pendant le chargement */}
+        {isLoading && (
+          <div className="flex justify-start">
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl rounded-tl-sm px-4 py-3 flex gap-1">
+              {/* 3 points qui pulsent avec un délai décalé */}
+              {[0, 1, 2].map(i => (
+                <span key={i} className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-pulse"
+                  style={{ animationDelay: `${i * 0.15}s` }} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Ancre invisible en bas pour le scroll automatique */}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Zone de saisie */}
+      <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-800 flex gap-2">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          // Envoi avec la touche Entrée
+          onKeyDown={(e) => e.key === "Enter" && handleSend()}
+          // Bloqué pendant le chargement
+          disabled={isLoading}
+          className="flex-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 px-4 py-2 rounded-xl text-sm outline-none focus:border-blue-400 disabled:opacity-50"
+          placeholder="Écris un message..."
+        />
+
+        {/* Bouton d'envoi, désactivé pendant le chargement */}
+        <button
+          onClick={handleSend}
+          disabled={isLoading}
+          className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 flex items-center justify-center hover:bg-blue-200 dark:hover:bg-blue-800 transition disabled:opacity-50"
+        >
+          ➤
+        </button>
+      </div>
+
     </div>
   )
 }
 
 export default App
 ```
+
 
 ---
 
@@ -1511,5 +2493,32 @@ Je t’ai préparé un guide complet structuré comme un vrai cours de développ
 * Prompt management
 * Vision / sentiment / suggestions
 
-Le guide est pensé comme une base de framework réutilisable.
+Le guide est pensé comme une base de framework réutilisable, inspirée directement des patterns communs de tes projets C3PO et Bon Vivant.
+
+# ERREURS :
+
+## Pas de retour Ollama :
+
+Le serveur doit être ouvert `ollama serve`
+le modèle doit être chargé : `ollama pull llama3`
+Test dans la console à la racine du projet :
+
+Test Ollama :
+`Invoke-RestMethod -Uri "http://localhost:11434/api/generate" -Method POST -ContentType "application/json" -Body '{"model":"llama3","prompt":"dis bonjour","stream":false}'`
+
+Test FastAPI :
+`Invoke-RestMethod -Uri "http://localhost:8000/chat" -Method POST -ContentType "application/json" -Body '{"messages":[{"role":"user","content":"bonjour"}]}'`
+
+Ca dira exactement où ça coince.
+
+## Pour voir si l'api fonctionne bien :
+
+Se rendre sur http://localhost:8000
+Si on a quelque chose comme ça, c'est que c'est bon :
+
+```json
+{
+"message": "API chatbot OK"
+}
+```
 

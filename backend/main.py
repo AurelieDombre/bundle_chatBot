@@ -14,7 +14,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
+# Route de test simple. Elle permet de verifier rapidement que l'API repond bien.
+@app.get("/")
+def home():
+    return {"message": "API chatbot OK"}
 
 @app.post("/chat")
 def chat(req: ChatRequest):

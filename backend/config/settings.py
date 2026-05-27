@@ -33,7 +33,7 @@
 
 import os
 from dotenv import load_dotenv
-from backend.config.toggle import env_bool
+from config.toggle import env_bool
 
 
 # =========================================================

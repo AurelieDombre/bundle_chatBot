@@ -1,0 +1,2 @@
+Génère un message d'accueil utilisateur ainsi que des suggestions de ce que tu peux faire.
+Tu es un assistant utile et concis. Réponds toujours en français.

@@ -17,16 +17,14 @@
 # pour une gestion plus robuste des booléens.
 # =========================================================
 
-import os
-import requests
+import httpx
 # from openai import OpenAI
 # from mistralai.client import MistralClient
-from config.settings import USE_OLLAMA
+from config.settings import USE_OLLAMA, OLLAMA_MODEL
 
 
 # Cette classe agit comme une abstraction des providers IA.
 class LLMClient:
-
 
     # → réponse générée par le provider sélectionné
     def ask(self, prompt: str):
@@ -45,15 +43,21 @@ class LLMClient:
 
 
     # Cette méthode communique avec l'API HTTP d'Ollama.
-    def ask_ollama(self, prompt):
+    def ask_ollama(self, prompt: str) -> str:
         # Requête HTTP POST vers Ollama avec le modèle utilisé, le prompts et le streaming : False :→ réponse complète d'un coup / True : → réponse token par token
-        response = requests.post(
-            "http://localhost:11434/api/generate",
-            json={
-                "model": "llama3",
-                "prompt": prompt,
-                "stream": False
-            }
-        )
+        try:
+            response = httpx.post(
+                "http://localhost:11434/api/generate",
+                json={
+                    "model": OLLAMA_MODEL,
+                    "prompt": prompt,
+                    "stream": False
+                },
+                timeout=60.0
+            )
+            response.raise_for_status()
+            return response.json()["response"]
 
-        return response.json()["response"]
+        except Exception as e:
+            print(f"⚠️ Ollama error: {e}")
+            return "Erreur : impossible de contacter Ollama."
